@@ -1,0 +1,45 @@
+import Attraction from '../models/Attraction.js';
+import axios from "axios";
+
+// import axios from "axios";
+// import Attraction from '../models/Attraction.js';
+
+// import axios from 'axios';
+
+export const getAllAddresses = async (req, res, next) => {
+    const address = req.params.id;
+    const googleApiKey = 'AIzaSyAOo1wTQp54U8W0FJWtB8JAnz_l51eQxso';
+    const coordinates = address.split("and");
+
+    try {
+        // Fetch popular places from Google Places API
+        const googleResponse = await axios.get(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=famous+attractions&location=${coordinates[0]}%2C${coordinates[1]}&radius=500&type=tourist_attraction&key=${googleApiKey}`);
+
+        // Extract place IDs from Google response
+        const placeIds = googleResponse.data.results.map(result => result.place_id);
+
+        // Fetch additional details for each place
+        const placesDetailsPromises = placeIds.map(async (placeId) => {
+            const detailsResponse = await axios.get(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,rating,photos&key=${googleApiKey}`);
+            const { name, rating, photos } = detailsResponse?.data?.result || {};
+            const imageUrl = photos?.length > 0 ? photos[0].getUrl({ maxWidth: 400 }) : null; // Assuming you want the first photo URL
+            
+            console.log('Image URL:', imageUrl); // Log the image URL
+            
+            return { name, rating, imageUrl };
+        });
+        
+
+        // Wait for all details promises to resolve
+        const placesDetails = await Promise.all(placesDetailsPromises);
+
+        res.status(200).json({ success: true, count: placesDetails.length, message: 'Successful', data: placesDetails });
+    } catch (err) {
+        console.error('Error fetching attractions:', err);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+};
+
+
+
+
